@@ -1,56 +1,61 @@
+import inspect
 import logging
-import os.path
 from pathlib import Path
-
-from config import ROOT_DIR
-
-Path(os.path.join(ROOT_DIR, "logs")).mkdir(parents=True, exist_ok=True)
-
-read_xlsx_logger = logging.getLogger("read_xlsx_logger")
-read_xlsx_handler = logging.FileHandler(os.path.join(ROOT_DIR, "logs", "read_xlsx.log"),
-                                        "w", encoding="utf-8")
-read_xlsx_formatter = logging.Formatter("%(asctime)s - %(filename)s - %(levelname)s - %(message)s",
-                                        datefmt="%Y-%m-%d %H:%M:%S")
-read_xlsx_handler.setFormatter(read_xlsx_formatter)
-read_xlsx_logger.addHandler(read_xlsx_handler)
-read_xlsx_logger.setLevel(logging.DEBUG)
+from typing import Literal
 
 
-external_api_logger = logging.getLogger("external_api_logger")
-external_api_handler = logging.FileHandler(os.path.join(ROOT_DIR, "logs", "external_api.log"),
-                                           "w", encoding="utf-8")
-external_api_formatter = logging.Formatter("%(asctime)s - %(filename)s - %(levelname)s - %(message)s",
-                                           datefmt="%Y-%m-%d %H:%M:%S")
-external_api_handler.setFormatter(external_api_formatter)
-external_api_logger.addHandler(external_api_handler)
-external_api_logger.setLevel(logging.DEBUG)
+LogLevel = int | Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
+def setup_logger(name: str = None,
+                 level: LogLevel = "INFO",
+                 log_file: str | None = None,
+                 log_to_console: bool = False,
+                 fmt: str = "%(asctime)s - %(levelname)s - logger:%(name)s - module:%(module)s - func:%(funcName)s:%(lineno)d - %(message)s",
+                 clear_log_on_start: bool = True,
+                 ) -> logging.Logger:
+    """
+    Настраивает универсальный логгер для проекта.
+    :param name: Имя логгера (обычно __name__)
+    :param level: уровень логирования (по умолчанию INFO)
+    :param log_file: путь к лог-файлу (если нужно логировать в файл)
+    :param log_to_console: по умолчанию не создается (если нужно логировать в консоль)
+    :param fmt: формат сообщения,
+    :param clear_log_on_start: удаляет старый лог-файл один раз при запуске,
+    :return: настроенный логгер
+    """
 
-src_utils_logger = logging.getLogger("src_utils_logger")
-src_utils_handler = logging.FileHandler(os.path.join(ROOT_DIR, "logs", "src_utils.log"),
-                                        "w", encoding="utf-8")
-src_utils_formatter = logging.Formatter("%(asctime)s - %(filename)s - %(levelname)s - %(message)s",
-                                        datefmt="%Y-%m-%d %H:%M:%S")
-src_utils_handler.setFormatter(src_utils_formatter)
-src_utils_logger.addHandler(src_utils_handler)
-src_utils_logger.setLevel(logging.DEBUG)
+    if name is None or log_file is None:
+        caller_frame = inspect.stack()[1]
+        caller_module = inspect.getmodule(caller_frame.frame)
+        module_name = caller_module.__name__ if caller_module else "None"
+        if name is None:
+            name = module_name
+        if log_file is None:
+            log_file = f"{module_name}.log"
 
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-services_logger = logging.getLogger("services_logger")
-services_handler = logging.FileHandler(os.path.join(ROOT_DIR, "logs", "services.log"),
-                                       "w", encoding="utf-8")
-services_formatter = logging.Formatter("%(asctime)s - %(filename)s - %(levelname)s - %(message)s",
-                                       datefmt="%Y-%m-%d %H:%M:%S")
-services_handler.setFormatter(services_formatter)
-services_logger.addHandler(services_handler)
-services_logger.setLevel(logging.DEBUG)
+    if logger.handlers:
+        return logger
 
+    formatter = logging.Formatter(fmt, datefmt="%Y-%m-%d %H:%M:%S")
 
-reports_logger = logging.getLogger("reports_logger")
-reports_handler = logging.FileHandler(os.path.join(ROOT_DIR, "logs", "reports.log"),
-                                      "w", encoding="utf-8")
-reports_formatter = logging.Formatter("%(asctime)s - %(filename)s - %(levelname)s - %(message)s",
-                                      datefmt="%Y-%m-%d %H:%M:%S")
-reports_handler.setFormatter(reports_formatter)
-reports_logger.addHandler(reports_handler)
-reports_logger.setLevel(logging.DEBUG)
+    if log_to_console:
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    if log_file:
+        logs_dir = Path(__file__).resolve().parent.parent / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        log_path = logs_dir / log_file
+
+        if clear_log_on_start and log_path.exists():
+            log_path.unlink()
+
+        file_handler = logging.FileHandler(log_path, mode="a", encoding="utf-8")
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    return logger
