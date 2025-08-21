@@ -5,82 +5,100 @@ import requests
 from dotenv import load_dotenv
 
 from config import ROOT_DIR
-from src.logging_config import external_api_logger
+from src.logging_config import setup_logger
+
+load_dotenv()
 
 
 def get_currency_rates() -> list[dict]:
     """Получает данные о курсе заданных валют к рублю."""
     file_name = os.path.join(ROOT_DIR, "user_settings.json")
+    url = "https://api.twelvedata.com/exchange_rate"
+    cur_to = "RUB"
+    currency_rates = []
+
     try:
-        external_api_logger.info(f"Чтение json-файла {file_name}.")
+        setup_logger().info(f"Чтение json-файла {file_name}.")
         with open(file_name) as f:
             data = json.load(f)
-
         valid_for_conversion = data["user_currencies"]
 
-        load_dotenv()
-        api_key = os.getenv('API_KEY_twelvedata')
-
-        currency_rates = []
-        cur_to = "RUB"
-        external_api_logger.info("Запрос к API https://api.twelvedata.com/exchange_rate")
+        setup_logger().info("Запрос к API https://api.twelvedata.com/exchange_rate")
         for cur in valid_for_conversion:
-            url = f"https://api.twelvedata.com/exchange_rate?symbol={cur}/{cur_to}&apikey={api_key}&source = docs"
-            response = requests.get(url).json()
+            params = {
+                "symbol": f"{cur}/{cur_to}",
+                "apikey": os.getenv('API_KEY_twelvedata')
+            }
 
-            result = round(float(response["rate"]), 2)
+            response = requests.get(url, params=params)
+            if response.status_code != 200: raise requests.exceptions.RequestException("Подключение не удалось")
+
+            data = response.json()
+            result = round(float(data["rate"]), 2)
 
             currency_rate = dict()
             currency_rate["currency"] = cur
             currency_rate["rate"] = result
             currency_rates.append(currency_rate)
 
-        external_api_logger.info("Получены данные с API https://api.twelvedata.com/exchange_rate")
+        setup_logger().info("Получены данные через API https://api.twelvedata.com/exchange_rate")
         return currency_rates
 
-    except FileNotFoundError as e:
-        external_api_logger.error(f"Json-файл {file_name} не найден.")
-        raise FileNotFoundError(f"Ошибка чтения файла: {e}.")
+    except FileNotFoundError:
+        setup_logger().error(f"Json-файл {file_name} не найден.")
+        return []
 
     except requests.exceptions.RequestException as e:
-        external_api_logger.warning(f"Ошибка запроса к API https://api.twelvedata.com/exchange_rate: {e}.")
-        print("Ошибка запроса к API:", e)
+        setup_logger().warning(f"Ошибка запроса к API https://api.twelvedata.com/exchange_rate: {e}.")
+        return []
+
+    except Exception as e:
+        setup_logger().error(f"Ошибка при получении курса валют: {e}")
         return []
 
 
 def get_stock_prices() -> list[dict]:
     """Получает данные о cтоимости заданных акций из S&P500 в рублях."""
     file_name = os.path.join(ROOT_DIR, "user_settings.json")
+    url = "https://api.twelvedata.com/price"
+    stock_prices = []
+
     try:
-        external_api_logger.info(f"Чтение json-файла {file_name}.")
+        setup_logger().info(f"Чтение json-файла {file_name}.")
         with open(file_name) as f:
             data = json.load(f)
-
         valid_stocks = data["user_stocks"]
 
-        load_dotenv()
-        api_key = os.getenv('API_KEY_twelvedata')
-
-        stock_prices = []
-        external_api_logger.info("Запрос к API https://api.twelvedata.com/price")
+        setup_logger().info("Запрос к API https://api.twelvedata.com/price")
         for stock in valid_stocks:
-            url = f"https://api.twelvedata.com/price?symbol={stock}&apikey={api_key}&source=docs"
-            response = requests.get(url).json()
+            params = {
+                "symbol": stock,
+                "apikey": os.getenv('API_KEY_twelvedata')
+            }
+
+            response = requests.get(url, params=params)
+            if response.status_code != 200: raise requests.exceptions.RequestException("Подключение не удалось")
+
+            data = response.json()
 
             stock_price = dict()
             stock_price["stock"] = stock
-            stock_price.update(response)
+            stock_price.update(data)
             stock_price["price"] = round(float(stock_price["price"]), 2)
             stock_prices.append(stock_price)
 
-        external_api_logger.info("Получены данные с API https://api.twelvedata.com/price")
+        setup_logger().info("Получены данные через API https://api.twelvedata.com/price")
         return stock_prices
 
-    except FileNotFoundError as e:
-        external_api_logger.error(f"Json-файл {file_name} не найден.")
-        raise FileNotFoundError(f"Ошибка чтения файла: {e}.")
+    except FileNotFoundError:
+        setup_logger().error(f"Json-файл {file_name} не найден.")
+        return []
 
     except requests.exceptions.RequestException as e:
-        external_api_logger.warning(f"Ошибка запроса к API https://api.twelvedata.com/price: {e}.")
+        setup_logger().warning(f"Ошибка запроса к API https://api.twelvedata.com/price: {e}.")
         print("Ошибка запроса к API:", e)
+        return []
+
+    except Exception as e:
+        setup_logger().error(f"Ошибка при получении стоимости акций: {e}")
         return []

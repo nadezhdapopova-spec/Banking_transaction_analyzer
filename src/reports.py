@@ -7,7 +7,7 @@ import pandas as pd
 from dateutil.relativedelta import relativedelta
 
 from config import ROOT_DIR
-from src.logging_config import reports_logger
+from src.logging_config import setup_logger
 from src.reports_decorator import report
 
 
@@ -23,12 +23,12 @@ def get_spending_by_category(transactions: pd.DataFrame,
         spending_by_date_category = get_spending_by_date_category(transactions, category, start_date, end_date)
 
         spending_by_category = json.dumps(spending_by_date_category, ensure_ascii=False, indent=4, default=str)
-        reports_logger.info("Данные о тратах по категории преобразованы в JSON-строку")
+        setup_logger().info("Данные о тратах по категории преобразованы в JSON-строку")
 
         return spending_by_category
 
     except KeyError as e:
-        reports_logger.error(f"Ошибка преобразования данных: {e}")
+        setup_logger().error(f"Ошибка преобразования данных: {e}")
         raise KeyError(f"Ошибка: {e}")
 
 
@@ -39,7 +39,7 @@ def get_date_information(date_str: Optional[str] = None) -> tuple[datetime, date
             date_obj = datetime.now()
         else:
             date_obj = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-        reports_logger.info(f"Дата {date_str} преобразована в объект datetime")
+        setup_logger().info(f"Дата {date_str} преобразована в объект datetime")
 
         start_date = date_obj.replace(day=1) - relativedelta(months=2)
         end_date = date_obj + timedelta(days=1)
@@ -47,7 +47,7 @@ def get_date_information(date_str: Optional[str] = None) -> tuple[datetime, date
         return start_date, end_date
 
     except ValueError as e:
-        reports_logger.error(f"Некорректный формат даты {date_str}")
+        setup_logger().error(f"Некорректный формат даты {date_str}")
         raise ValueError(f"Некорректный формат даты: {e}")
 
 
@@ -62,7 +62,7 @@ def get_spending_by_date_category(transactions_df: pd.DataFrame,
                                                 (transactions_df["Дата операции"] < end_date)]
 
         total_spends = filtered_transactions[filtered_transactions["Сумма операции"] < 0]["Сумма операции"].sum()
-        reports_logger.info("Получены траты по заданной дате и категории")
+        setup_logger().info("Получены траты по заданной дате и категории")
 
         spending_by_date_category = {
             "category": category,
@@ -72,5 +72,5 @@ def get_spending_by_date_category(transactions_df: pd.DataFrame,
         return spending_by_date_category
 
     except KeyError as e:
-        reports_logger.error(f"Ошибка фильтрации транзакций: {e}")
+        setup_logger().error(f"Ошибка фильтрации транзакций: {e}")
         raise KeyError(f"Ошибка: {e}")
