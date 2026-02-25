@@ -1,8 +1,7 @@
 [project]
 name = "banking-transaction-analyzer"
 version = "0.1.0"
-description = """Project for analyzing bank transactions
-                 that are in an Excel file"""
+description = "backend module for analyzing banking transactions and generating financial analytics"
 authors = [
     {name = "Nadezhda_Popova",email = "nadezhdapopova13@yandex.ru"}
 ]
